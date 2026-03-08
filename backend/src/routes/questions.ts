@@ -1,0 +1,58 @@
+import { Router, Request, Response } from 'express';
+import { QuestionCategory, getNextQuestion, getQuestionsByCategory } from '../data/questions';
+
+const router = Router();
+
+// GET /api/questions - Get next question
+// Query params: category (required), lastId (optional)
+router.get('/', (req: Request, res: Response) => {
+  const { category, lastId } = req.query;
+  
+  // Validate category
+  if (!category || typeof category !== 'string') {
+    res.status(400).json({ error: 'Category is required' });
+    return;
+  }
+  
+  const validCategories: QuestionCategory[] = ['cs_ops', 'tech_support', 'behavioral'];
+  if (!validCategories.includes(category as QuestionCategory)) {
+    res.status(400).json({ 
+      error: 'Invalid category. Must be one of: cs_ops, tech_support, behavioral' 
+    });
+    return;
+  }
+  
+  const lastIdStr = typeof lastId === 'string' ? lastId : undefined;
+  const result = getNextQuestion(category as QuestionCategory, lastIdStr);
+  
+  if (!result.question) {
+    res.status(404).json({ 
+      error: 'No more questions available for this category',
+      category,
+      total: result.total
+    });
+    return;
+  }
+  
+  res.json({
+    question: result.question,
+    pagination: {
+      current: result.currentIndex,
+      total: result.total,
+      hasMore: result.hasMore
+    }
+  });
+});
+
+// GET /api/questions/categories - List all categories with counts
+router.get('/categories', (_req: Request, res: Response) => {
+  const categories: { id: QuestionCategory; name: string; count: number }[] = [
+    { id: 'cs_ops', name: 'Customer Support / Systems Enablement', count: getQuestionsByCategory('cs_ops').length },
+    { id: 'tech_support', name: 'Technical Support / SaaS', count: getQuestionsByCategory('tech_support').length },
+    { id: 'behavioral', name: 'Behavioral (STAR Method)', count: getQuestionsByCategory('behavioral').length }
+  ];
+  
+  res.json({ categories });
+});
+
+export default router;
