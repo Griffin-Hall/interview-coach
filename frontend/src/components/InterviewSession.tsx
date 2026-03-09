@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import type { 
   InterviewType, 
   Question, 
@@ -79,7 +80,12 @@ export default function InterviewSessionComponent({ type, onComplete, onExit }: 
 
       setExchanges(prev => [...prev, exchange]);
     } catch (err) {
-      setError('Failed to analyze answer. Please try again.');
+      if (axios.isAxiosError(err)) {
+        const apiErrorMessage = (err.response?.data as { error?: string } | undefined)?.error;
+        setError(apiErrorMessage || 'Failed to analyze answer. Please try again.');
+      } else {
+        setError('Failed to analyze answer. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }

@@ -12,6 +12,8 @@ interface QuestionViewProps {
   isLoading: boolean;
 }
 
+const MIN_ANSWER_LENGTH = 20;
+
 const typeLabels: Record<InterviewType, string> = {
   cs_ops: 'Customer Support',
   tech_support: 'Tech Support',
@@ -34,6 +36,7 @@ export default function QuestionView({
   isLoading
 }: QuestionViewProps) {
   const [answer, setAnswer] = useState('');
+  const [validationError, setValidationError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const {
@@ -60,17 +63,28 @@ export default function QuestionView({
   // Reset when question changes
   useEffect(() => {
     setAnswer('');
+    setValidationError(null);
     resetTranscript();
   }, [question.id, resetTranscript]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (answer.trim() && !isLoading) {
+    const trimmedAnswer = answer.trim();
+
+    if (trimmedAnswer.length < MIN_ANSWER_LENGTH) {
+      setValidationError(
+        `Please write at least ${MIN_ANSWER_LENGTH} characters before submitting.`
+      );
+      return;
+    }
+
+    setValidationError(null);
+    if (trimmedAnswer && !isLoading) {
       // Stop recording if active
       if (isListening) {
         stopListening();
       }
-      onSubmit(answer.trim());
+      onSubmit(trimmedAnswer);
     }
   };
 
@@ -145,13 +159,24 @@ export default function QuestionView({
         </div>
       )}
 
+      {validationError && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-4">
+          <p className="text-sm text-red-400">⚠️ {validationError}</p>
+        </div>
+      )}
+
       {/* Answer Input */}
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
         <div className="flex-1 relative">
           <textarea
             ref={textareaRef}
             value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
+            onChange={(e) => {
+              setAnswer(e.target.value);
+              if (validationError) {
+                setValidationError(null);
+              }
+            }}
             onKeyDown={handleKeyDown}
             placeholder="Type your answer here... (Ctrl+Enter to submit)"
             className="w-full h-full bg-gray-800 text-white placeholder-gray-500 rounded-xl p-4 resize-none focus:outline-hidden focus:ring-2 focus:ring-blue-500"
