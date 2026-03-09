@@ -8,10 +8,16 @@ export interface AnalyzeRequest {
   interviewType: InterviewType;
 }
 
+export interface AnalyzeMeta {
+  source: 'llm' | 'fallback';
+  message?: string;
+}
+
 export interface AnalyzeResponse {
   strengths: string[];
   gaps: string[];
   followUp: string;
+  meta?: AnalyzeMeta;
 }
 
 export interface QAExchange {

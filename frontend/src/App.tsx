@@ -1,14 +1,33 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { InterviewType, CategoryInfo, QAExchange, InterviewSession } from './types';
-import { fetchCategories, saveSession } from './services/api';
-import InterviewTypeSelector from './components/InterviewTypeSelector';
-import InterviewSessionComponent from './components/InterviewSession';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import HistoryView from './components/HistoryView';
+import InterviewSessionComponent, {
+  type InterviewSessionResult
+} from './components/InterviewSession';
+import InterviewTypeSelector from './components/InterviewTypeSelector';
+import SessionSummary from './components/SessionSummary';
+import VisitStatsWidget from './components/VisitStatsWidget';
+import { fetchCategories } from './services/api';
+import type { CategoryInfo, InterviewSession, InterviewType, VisitStats } from './types';
+import {
+  createSessionId,
+  formatSessionDate,
+  interviewTypeLabels,
+  interviewTypeLongLabels
+} from './utils/session';
 import './index.css';
 
-type View = 'home' | 'interview' | 'history';
+type View = 'home' | 'interview' | 'history' | 'summary';
 
-const LOCAL_STORAGE_KEY = 'interview-history';
+const createVisitStats = (): VisitStats => ({
+  questionsAsked: 0,
+  answersAnalyzed: 0,
+  perType: {
+    cs_ops: 0,
+    tech_support: 0,
+    behavioral: 0
+  },
+  startedAt: new Date().toISOString()
+});
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('home');
@@ -16,153 +35,301 @@ function App() {
   const [categories, setCategories] = useState<CategoryInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessionHistory, setSessionHistory] = useState<InterviewSession[]>([]);
+  const [activeSummary, setActiveSummary] = useState<InterviewSession | null>(null);
+  const [visitStats, setVisitStats] = useState<VisitStats>(() => createVisitStats());
+  const [interviewKey, setInterviewKey] = useState(0);
 
-  // Load categories on mount
   useEffect(() => {
-    loadCategories();
+    void loadCategories();
   }, []);
 
   const loadCategories = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       const response = await fetchCategories();
       setCategories(response.categories);
-    } catch (err) {
-      setError('Failed to load interview categories');
+    } catch (loadError) {
+      console.error('Failed to load categories', loadError);
+      setError('Could not load interview types. Please retry.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleStartInterview = () => {
-    if (selectedType) {
-      setCurrentView('interview');
+    if (!selectedType) {
+      return;
     }
+
+    setInterviewKey((previous) => previous + 1);
+    setCurrentView('interview');
   };
 
-  const handleCompleteInterview = useCallback(async (exchanges: QAExchange[]) => {
-    if (!selectedType) return;
+  const handleQuestionAsked = useCallback(() => {
+    setVisitStats((previous) => ({
+      ...previous,
+      questionsAsked: previous.questionsAsked + 1,
+      perType: previous.perType
+    }));
+  }, []);
 
-    const session: InterviewSession = {
-      type: selectedType,
-      exchanges,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+  const handleAnswerAnalyzed = useCallback((type: InterviewType) => {
+    setVisitStats((previous) => ({
+      ...previous,
+      answersAnalyzed: previous.answersAnalyzed + 1,
+      perType: {
+        ...previous.perType,
+        [type]: previous.perType[type] + 1
+      }
+    }));
+  }, []);
 
-    // Save to localStorage
-    try {
-      const existingHistory = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]');
-      const updatedHistory = [session, ...existingHistory];
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedHistory));
-    } catch (e) {
-      console.error('Failed to save to localStorage:', e);
-    }
+  const handleCompleteInterview = useCallback(
+    (result: InterviewSessionResult) => {
+      if (!selectedType) {
+        return;
+      }
 
-    // Try to save to backend (optional)
-    try {
-      await saveSession(session);
-    } catch (e) {
-      console.log('Backend save failed (optional):', e);
-    }
+      const durationSeconds = Math.max(
+        0,
+        Math.round(
+          (new Date(result.endedAt).getTime() - new Date(result.startedAt).getTime()) / 1000
+        )
+      );
 
+      const session: InterviewSession = {
+        id: createSessionId(),
+        type: selectedType,
+        exchanges: result.exchanges,
+        createdAt: result.startedAt,
+        updatedAt: result.endedAt,
+        durationSeconds,
+        questionsAsked: result.questionsAsked,
+        answersAnalyzed: result.answersAnalyzed,
+        reason: result.reason
+      };
+
+      setSessionHistory((previous) => [session, ...previous]);
+      setActiveSummary(session);
+      setCurrentView('summary');
+      setSelectedType(null);
+    },
+    [selectedType]
+  );
+
+  const handleExitInterviewToHome = () => {
     setSelectedType(null);
     setCurrentView('home');
-  }, [selectedType]);
-
-  const handleExitInterview = () => {
-    if (confirm('Are you sure you want to exit? Your progress will not be saved.')) {
-      setSelectedType(null);
-      setCurrentView('home');
-    }
   };
 
-  // Render current view
+  const handleNewInterview = () => {
+    setVisitStats(createVisitStats());
+    setSelectedType(null);
+    setActiveSummary(null);
+    setCurrentView('home');
+    setInterviewKey((previous) => previous + 1);
+  };
+
+  const openSessionSummary = (session: InterviewSession) => {
+    setActiveSummary(session);
+    setCurrentView('summary');
+  };
+
+  const sessionTypeBreakdown = useMemo(() => {
+    const entries = Object.entries(visitStats.perType) as Array<[InterviewType, number]>;
+
+    return entries
+      .filter(([, count]) => count > 0)
+      .map(([type, count]) => `${count} ${interviewTypeLabels[type]}`)
+      .join(' | ');
+  }, [visitStats.perType]);
+
+  const recentSessions = useMemo(() => sessionHistory.slice(0, 4), [sessionHistory]);
+
+  const renderHomeView = () => {
+    if (isLoading) {
+      return (
+        <section className="panel loading-shell fade-in">
+          <div className="spinner" aria-hidden="true" />
+          <p className="muted-text">Loading interview modes...</p>
+        </section>
+      );
+    }
+
+    if (error) {
+      return (
+        <section className="panel empty-state fade-in">
+          <h3>{error}</h3>
+          <button type="button" className="button button-primary" onClick={loadCategories}>
+            Retry
+          </button>
+        </section>
+      );
+    }
+
+    return (
+      <div className="home-grid">
+        <InterviewTypeSelector
+          categories={categories}
+          selectedType={selectedType}
+          onSelect={setSelectedType}
+          onStart={handleStartInterview}
+        />
+
+        <aside className="home-secondary">
+          <VisitStatsWidget stats={visitStats} />
+
+          <section className="panel panel-soft">
+            <p className="panel-eyebrow">History Snapshot</p>
+            <h3 className="panel-title">Recent Interviews</h3>
+            {recentSessions.length === 0 ? (
+              <p className="muted-text">No interview sessions completed in this tab yet.</p>
+            ) : (
+              <div className="mini-session-list">
+                {recentSessions.map((session) => (
+                  <button
+                    key={session.id}
+                    type="button"
+                    className="mini-session-card"
+                    onClick={() => openSessionSummary(session)}
+                  >
+                    <span>{interviewTypeLabels[session.type]}</span>
+                    <span>{session.exchanges.length} answers</span>
+                    <span>{formatSessionDate(session.updatedAt || session.createdAt)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="action-row action-row-compact">
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={() => setCurrentView('history')}
+              >
+                Open Full History
+              </button>
+            </div>
+          </section>
+        </aside>
+      </div>
+    );
+  };
+
   const renderView = () => {
     switch (currentView) {
       case 'interview':
-        if (!selectedType) return null;
+        if (!selectedType) {
+          return (
+            <section className="panel empty-state">
+              <h3>No interview mode selected</h3>
+              <button
+                type="button"
+                className="button button-primary"
+                onClick={() => setCurrentView('home')}
+              >
+                Return Home
+              </button>
+            </section>
+          );
+        }
+
         return (
           <InterviewSessionComponent
+            key={`interview_${interviewKey}_${selectedType}`}
             type={selectedType}
             onComplete={handleCompleteInterview}
-            onExit={handleExitInterview}
+            onExitToHome={handleExitInterviewToHome}
+            onNewInterview={handleNewInterview}
+            onQuestionAsked={() => handleQuestionAsked()}
+            onAnswerAnalyzed={handleAnswerAnalyzed}
+          />
+        );
+
+      case 'summary':
+        if (!activeSummary) {
+          return (
+            <section className="panel empty-state">
+              <h3>No session summary selected</h3>
+              <button
+                type="button"
+                className="button button-primary"
+                onClick={() => setCurrentView('home')}
+              >
+                Return Home
+              </button>
+            </section>
+          );
+        }
+
+        return (
+          <SessionSummary
+            session={activeSummary}
+            onBackHome={() => setCurrentView('home')}
+            onNewInterview={handleNewInterview}
+            onViewHistory={() => setCurrentView('history')}
           />
         );
 
       case 'history':
-        return <HistoryView onBack={() => setCurrentView('home')} />;
+        return (
+          <HistoryView
+            sessions={sessionHistory}
+            onBack={() => setCurrentView('home')}
+            onOpenSession={openSessionSummary}
+          />
+        );
 
       case 'home':
       default:
-        return (
-          <div className="min-h-screen bg-gray-900">
-            {/* Header */}
-            <header className="border-b border-gray-800">
-              <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="text-2xl">🎯</div>
-                  <h1 className="text-xl font-bold text-white">AI Interview Coach</h1>
-                </div>
-                <nav className="flex items-center gap-4">
-                  <button
-                    onClick={() => setCurrentView('history')}
-                    className="text-gray-400 hover:text-white transition-colors"
-                  >
-                    History
-                  </button>
-                  <a
-                    href="https://github.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-white transition-colors"
-                  >
-                    GitHub
-                  </a>
-                </nav>
-              </div>
-            </header>
-
-            {/* Main Content */}
-            <main className="py-12">
-              {isLoading ? (
-                <div className="flex justify-center py-12">
-                  <div className="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
-                </div>
-              ) : error ? (
-                <div className="text-center py-12">
-                  <p className="text-red-400 mb-4">{error}</p>
-                  <button
-                    onClick={loadCategories}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-                  >
-                    Retry
-                  </button>
-                </div>
-              ) : (
-                <InterviewTypeSelector
-                  categories={categories}
-                  selectedType={selectedType}
-                  onSelect={setSelectedType}
-                  onStart={handleStartInterview}
-                />
-              )}
-            </main>
-
-            {/* Footer */}
-            <footer className="border-t border-gray-800 mt-auto">
-              <div className="max-w-6xl mx-auto px-6 py-6 text-center text-gray-500 text-sm">
-                <p>Practice interviews with AI-powered feedback • Built with React + Express + TypeScript</p>
-              </div>
-            </footer>
-          </div>
-        );
+        return renderHomeView();
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {renderView()}
+    <div className="app-shell">
+      <div className="bg-orb bg-orb-one" aria-hidden="true" />
+      <div className="bg-orb bg-orb-two" aria-hidden="true" />
+
+      <header className="app-header">
+        <div className="app-header-inner">
+          <button type="button" className="brand" onClick={() => setCurrentView('home')}>
+            <span className="brand-kicker">AI Interview Coach</span>
+            <span className="brand-title">Portfolio-Ready Practice Workspace</span>
+          </button>
+
+          <div className="header-right">
+            <p className="header-stats">
+              Current Session: {visitStats.answersAnalyzed} questions answered
+              {sessionTypeBreakdown ? ` | ${sessionTypeBreakdown}` : ''}
+            </p>
+
+            <div className="action-row action-row-compact">
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={() => setCurrentView('history')}
+              >
+                History
+              </button>
+              <button type="button" className="button button-primary" onClick={handleNewInterview}>
+                New Interview
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="layout-frame">{renderView()}</main>
+
+      <footer className="app-footer">
+        <p>
+          In-memory experience for this tab only. Landing -&gt; interview -&gt; summary with copy-ready output.
+        </p>
+        {selectedType ? <p>Current mode: {interviewTypeLongLabels[selectedType]}</p> : null}
+      </footer>
     </div>
   );
 }

@@ -172,7 +172,7 @@ export function useSpeechToText(): UseSpeechToTextReturn {
     
     try {
       recognitionRef.current.start();
-    } catch (err) {
+    } catch {
       // If already started, stop and restart
       try {
         recognitionRef.current.stop();

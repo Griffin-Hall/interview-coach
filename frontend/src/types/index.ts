@@ -25,10 +25,16 @@ export interface AnalyzeRequest {
   interviewType: InterviewType;
 }
 
+export interface AnalyzeMeta {
+  source: 'llm' | 'fallback';
+  message?: string;
+}
+
 export interface AnalyzeResponse {
   strengths: string[];
   gaps: string[];
   followUp: string;
+  meta?: AnalyzeMeta;
 }
 
 export interface QAExchange {
@@ -46,6 +52,10 @@ export interface InterviewSession {
   exchanges: QAExchange[];
   createdAt?: string;
   updatedAt?: string;
+  durationSeconds?: number;
+  questionsAsked?: number;
+  answersAnalyzed?: number;
+  reason?: 'completed' | 'ended_early';
 }
 
 export interface CategoryInfo {
@@ -64,4 +74,19 @@ export interface SavedSession {
 export interface SessionListResponse {
   sessions: SavedSession[];
   total: number;
+}
+
+export interface SessionRunStats {
+  questionsAnswered: number;
+  strengthsCount: number;
+  gapsCount: number;
+  averageScore: number;
+  timeSpentSeconds: number;
+}
+
+export interface VisitStats {
+  questionsAsked: number;
+  answersAnalyzed: number;
+  perType: Record<InterviewType, number>;
+  startedAt: string;
 }

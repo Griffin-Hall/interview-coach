@@ -48,7 +48,8 @@ router.post('/', async (req: Request, res: Response) => {
     const response: AnalyzeResponse = {
       strengths: analysis.strengths,
       gaps: analysis.gaps,
-      followUp: analysis.followUp
+      followUp: analysis.followUp,
+      meta: analysis.meta
     };
     
     res.json(response);
