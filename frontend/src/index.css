@@ -621,6 +621,38 @@ textarea {
   flex-wrap: wrap;
 }
 
+.voice-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 0.72rem;
+  background: #ffffff;
+  padding: 0 0.45rem;
+  min-height: 2.55rem;
+}
+
+.voice-control span {
+  font-size: 0.76rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.voice-select {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+  min-width: 82px;
+  text-transform: capitalize;
+}
+
+.voice-select:focus {
+  outline: none;
+}
+
 .feedback-panel {
   display: grid;
   gap: 0.85rem;

@@ -5,9 +5,15 @@ import type {
   InterviewType,
   QAExchange,
   Question,
-  QuestionResponse
+  QuestionResponse,
+  SpeechVoice
 } from '../types';
-import { analyzeAnswer, fetchQuestions } from '../services/api';
+import {
+  analyzeAnswer,
+  fetchQuestions,
+  fetchSpeechVoices,
+  generateSpeechAudio
+} from '../services/api';
 import { formatDuration } from '../utils/session';
 import FeedbackPanel from './FeedbackPanel';
 import QuestionView from './QuestionView';
@@ -20,6 +26,22 @@ export interface InterviewSessionResult {
   answersAnalyzed: number;
   reason: 'completed' | 'ended_early';
 }
+
+const fallbackSpeechVoices: SpeechVoice[] = [
+  'alloy',
+  'ash',
+  'ballad',
+  'coral',
+  'echo',
+  'fable',
+  'nova',
+  'onyx',
+  'sage',
+  'shimmer',
+  'verse'
+];
+
+const fallbackDefaultVoice: SpeechVoice = 'alloy';
 
 interface InterviewSessionProps {
   type: InterviewType;
@@ -59,9 +81,32 @@ export default function InterviewSessionComponent({
   const [questionsAskedCount, setQuestionsAskedCount] = useState(0);
   const [answersAnalyzedCount, setAnswersAnalyzedCount] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [isReadingAloud, setIsReadingAloud] = useState(false);
+  const [readAloudError, setReadAloudError] = useState<string | null>(null);
+  const [availableVoices, setAvailableVoices] = useState<SpeechVoice[]>(fallbackSpeechVoices);
+  const [readAloudVoice, setReadAloudVoice] = useState<SpeechVoice>(fallbackDefaultVoice);
 
   const startedAtRef = useRef(new Date().toISOString());
   const askedPromptIdsRef = useRef<Set<string>>(new Set());
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
+
+  const stopReadAloud = useCallback(() => {
+    if (audioElementRef.current) {
+      audioElementRef.current.pause();
+      audioElementRef.current.src = '';
+      audioElementRef.current = null;
+    }
+
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+
+    setIsReadingAloud(false);
+    setIsGeneratingAudio(false);
+  }, []);
 
   const registerAskedPrompt = useCallback(
     (promptId: string) => {
@@ -175,6 +220,37 @@ export default function InterviewSessionComponent({
       window.clearInterval(timer);
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSpeechVoices = async () => {
+      try {
+        const response = await fetchSpeechVoices();
+
+        if (!isMounted || !response.voices?.length) {
+          return;
+        }
+
+        setAvailableVoices(response.voices);
+        setReadAloudVoice(response.defaultVoice || response.voices[0] || fallbackDefaultVoice);
+      } catch (voiceError) {
+        console.error('Failed to load speech voices, using fallback list.', voiceError);
+      }
+    };
+
+    void loadSpeechVoices();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopReadAloud();
+    };
+  }, [stopReadAloud]);
 
   const finalizeSession = useCallback(
     (reason: 'completed' | 'ended_early') => {
@@ -332,6 +408,58 @@ export default function InterviewSessionComponent({
       }
     : null;
 
+  useEffect(() => {
+    stopReadAloud();
+    setReadAloudError(null);
+  }, [presentedQuestion?.text, stopReadAloud]);
+
+  const handleReadAloud = async () => {
+    const questionText = presentedQuestion?.text?.trim();
+
+    if (!questionText) {
+      return;
+    }
+
+    if (isReadingAloud) {
+      stopReadAloud();
+      return;
+    }
+
+    setIsGeneratingAudio(true);
+    setReadAloudError(null);
+
+    try {
+      const audioBlob = await generateSpeechAudio({
+        text: questionText,
+        voice: readAloudVoice
+      });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+
+      audioElementRef.current = audio;
+      audioUrlRef.current = audioUrl;
+      audio.onended = () => {
+        stopReadAloud();
+      };
+      audio.onerror = () => {
+        setReadAloudError('Audio playback failed for this question.');
+        stopReadAloud();
+      };
+
+      setIsReadingAloud(true);
+      setIsGeneratingAudio(false);
+      await audio.play();
+    } catch (audioError) {
+      if (audioError instanceof Error) {
+        setReadAloudError(audioError.message);
+      } else {
+        setReadAloudError('Read aloud failed. Please try again.');
+      }
+
+      stopReadAloud();
+    }
+  };
+
   return (
     <section className="interview-shell fade-in">
       <header className="panel interview-toolbar">
@@ -386,6 +514,13 @@ export default function InterviewSessionComponent({
               total={pagination.total}
               onSubmit={handleSubmitAnswer}
               onSkip={handleSkip}
+      onReadAloud={() => void handleReadAloud()}
+              readAloudVoice={readAloudVoice}
+              availableVoices={availableVoices}
+              onReadAloudVoiceChange={setReadAloudVoice}
+              isReadingAloud={isReadingAloud}
+              isGeneratingAudio={isGeneratingAudio}
+              readAloudError={readAloudError}
               isLoading={isAnalyzing || isQuestionLoading}
               isFollowUp={followUpMode}
             />

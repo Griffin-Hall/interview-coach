@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import questionsRouter from './routes/questions';
 import analysisRouter from './routes/analysis';
 import sessionsRouter from './routes/sessions';
+import speechRouter from './routes/speech';
 
 dotenv.config();
 
@@ -74,6 +75,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 app.use('/api/questions', questionsRouter);
 app.use('/api/analyze-answer', analysisRouter);
 app.use('/api/sessions', sessionsRouter);
+app.use('/api/speech', speechRouter);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
@@ -97,6 +99,7 @@ app.listen(PORT, () => {
   console.log(`   GET  /api/questions?category=<cs_ops|tech_support|behavioral>&lastId=<optional>`);
   console.log(`   GET  /api/questions/categories`);
   console.log(`   POST /api/analyze-answer`);
+  console.log(`   POST /api/speech`);
   console.log(`   GET  /api/sessions`);
   console.log(`   POST /api/sessions`);
   console.log(`   GET  /api/sessions/:id`);

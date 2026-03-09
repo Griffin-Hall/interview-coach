@@ -1,6 +1,18 @@
 export type InterviewType = 'cs_ops' | 'tech_support' | 'behavioral' | 'custom';
 export type QuestionCategory = InterviewType;
 export type CustomQuestionMode = 'job_description' | 'role_prompt';
+export type SpeechVoice =
+  | 'alloy'
+  | 'ash'
+  | 'ballad'
+  | 'coral'
+  | 'echo'
+  | 'fable'
+  | 'nova'
+  | 'onyx'
+  | 'sage'
+  | 'shimmer'
+  | 'verse';
 
 export interface Question {
   id: string;
@@ -48,6 +60,16 @@ export interface GenerateCustomQuestionsResponse {
   roleLabel: string;
   questions: Question[];
   meta: AnalyzeMeta;
+}
+
+export interface GenerateSpeechRequest {
+  text: string;
+  voice?: SpeechVoice;
+}
+
+export interface SpeechVoicesResponse {
+  voices: SpeechVoice[];
+  defaultVoice: SpeechVoice;
 }
 
 export interface QAExchange {

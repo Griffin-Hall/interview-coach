@@ -4,6 +4,8 @@ import type {
   QuestionCategory,
   AnalyzeRequest,
   AnalyzeResponse,
+  GenerateSpeechRequest,
+  SpeechVoicesResponse,
   GenerateCustomQuestionsRequest,
   GenerateCustomQuestionsResponse,
   CategoryInfo,
@@ -49,6 +51,38 @@ export const generateCustomQuestions = async (
   data: GenerateCustomQuestionsRequest
 ): Promise<GenerateCustomQuestionsResponse> => {
   const response = await api.post('/questions/custom', data);
+  return response.data;
+};
+
+export const generateSpeechAudio = async (data: GenerateSpeechRequest): Promise<Blob> => {
+  try {
+    const response = await api.post('/speech', data, {
+      responseType: 'blob'
+    });
+
+    return response.data as Blob;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.data instanceof Blob) {
+      const contentType = error.response.headers?.['content-type'];
+
+      if (typeof contentType === 'string' && contentType.includes('application/json')) {
+        const bodyText = await error.response.data.text();
+
+        try {
+          const parsed = JSON.parse(bodyText) as { error?: string };
+          throw new Error(parsed.error || 'Failed to generate speech audio.');
+        } catch {
+          throw new Error('Failed to generate speech audio.');
+        }
+      }
+    }
+
+    throw error;
+  }
+};
+
+export const fetchSpeechVoices = async (): Promise<SpeechVoicesResponse> => {
+  const response = await api.get('/speech/voices');
   return response.data;
 };
 

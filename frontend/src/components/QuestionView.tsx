@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { InterviewType, Question } from '../types';
+import type { InterviewType, Question, SpeechVoice } from '../types';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 
 interface QuestionViewProps {
@@ -9,6 +9,13 @@ interface QuestionViewProps {
   total: number;
   onSubmit: (answer: string) => void;
   onSkip: () => void;
+  onReadAloud: () => void;
+  readAloudVoice: SpeechVoice;
+  availableVoices: SpeechVoice[];
+  onReadAloudVoiceChange: (voice: SpeechVoice) => void;
+  isReadingAloud: boolean;
+  isGeneratingAudio: boolean;
+  readAloudError: string | null;
   isLoading: boolean;
   isFollowUp?: boolean;
 }
@@ -29,6 +36,13 @@ export default function QuestionView({
   total,
   onSubmit,
   onSkip,
+  onReadAloud,
+  readAloudVoice,
+  availableVoices,
+  onReadAloudVoiceChange,
+  isReadingAloud,
+  isGeneratingAudio,
+  readAloudError,
   isLoading,
   isFollowUp = false
 }: QuestionViewProps) {
@@ -165,6 +179,8 @@ export default function QuestionView({
         <aside className="notice notice-error">Speech input: {sttError}</aside>
       ) : null}
 
+      {readAloudError ? <aside className="notice notice-error">{readAloudError}</aside> : null}
+
       {validationError ? <aside className="notice notice-error">{validationError}</aside> : null}
 
       <form onSubmit={handleSubmit} className="answer-form">
@@ -195,6 +211,35 @@ export default function QuestionView({
             <button type="button" className="button button-ghost" onClick={onSkip} disabled={isLoading}>
               Skip
             </button>
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={onReadAloud}
+              disabled={isGeneratingAudio}
+              title="Generate spoken audio for this question"
+            >
+              {isGeneratingAudio
+                ? 'Loading Audio...'
+                : isReadingAloud
+                  ? 'Stop Audio'
+                  : 'Read Aloud'}
+            </button>
+            <label className="voice-control">
+              <span>Voice</span>
+              <select
+                value={readAloudVoice}
+                className="voice-select"
+                onChange={(event) => onReadAloudVoiceChange(event.target.value as SpeechVoice)}
+                disabled={isGeneratingAudio || isReadingAloud}
+                aria-label="Read aloud voice"
+              >
+                {availableVoices.map((voice) => (
+                  <option key={voice} value={voice}>
+                    {voice}
+                  </option>
+                ))}
+              </select>
+            </label>
             {isSupported ? (
               <button
                 type="button"
@@ -206,6 +251,7 @@ export default function QuestionView({
               </button>
             ) : null}
           </div>
+          <p className="micro-copy">Read aloud uses an AI-generated voice.</p>
 
           <button
             type="submit"
