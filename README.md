@@ -1,64 +1,50 @@
-# 🤖 AI Interview Coach
+# AI Interview Coach
 
-A web-based AI-powered interview practice platform built as a portfolio-grade full-stack application. Practice customer support, technical support, and behavioral interviews with real-time AI feedback.
+AI-powered interview practice platform with a React frontend and Express backend.
 
-![Tech Stack](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
-![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
-![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)
-![Tailwind](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+## Tech Stack
+- Frontend: React 19, TypeScript, Vite, Tailwind CSS
+- Backend: Node.js, Express, TypeScript
+- Deployment: GitHub Pages (frontend) + Render (backend)
 
-## ✨ Features
+## Project Structure
+```text
+Interview-Website/
+|-- backend/
+|   |-- src/
+|   |-- .env.example
+|   `-- package.json
+|-- frontend/
+|   |-- src/
+|   |-- .env.example
+|   `-- package.json
+|-- .github/workflows/deploy.yml
+|-- render.yaml
+`-- README.md
+```
 
-### Core Interview Experience
-- **Three Interview Categories**: Customer Support, Technical Support, and Behavioral (STAR-method)
-- **16 Curated Questions**: Professionally crafted questions with tags for organization
-- **AI-Powered Feedback**: Instant analysis with strengths, gaps, and follow-up questions
-- **Follow-up Questions**: Deep-dive follow-ups to practice elaboration
-
-### Voice Input (Speech-to-Text)
-- **Browser-based STT**: Use Web Speech API for hands-free answering
-- **Real-time Transcription**: See your words appear as you speak
-- **Chrome/Edge Support**: Best experience on modern browsers
-
-### Session Management
-- **Local Persistence**: Sessions saved to localStorage automatically
-- **Backend Storage**: Optional server-side persistence with in-memory store
-- **Session History**: Review past interviews with full Q/A and feedback
-- **Export as Markdown**: Download sessions for offline review
-
-### User Experience
-- **Responsive Design**: Clean, modern UI with Tailwind CSS v4
-- **Progress Tracking**: Visual progress indicators during interviews
-- **STAR Method Tips**: Contextual reminders for behavioral questions
-- **Keyboard Shortcuts**: Ctrl+Enter to submit answers
-
-## 🚀 Quick Start
+## Local Development
 
 ### Prerequisites
-- Node.js 18+ 
-- npm or yarn
-- (Optional) OpenAI API key for real AI analysis
+- Node.js 18+
+- npm
 
-### Installation
-
-1. **Clone and install dependencies:**
+### 1) Install dependencies
 ```bash
-# Install backend dependencies
 cd backend
 npm install
 
-# Install frontend dependencies
 cd ../frontend
 npm install
 ```
 
-2. **Configure environment variables:**
-
+### 2) Configure environment variables
 Backend (`backend/.env`):
 ```env
 PORT=3001
-# Optional: Add for real AI analysis
-# OPENAI_API_KEY=your_openai_key_here
+CORS_ALLOWED_ORIGIN=http://localhost:5173
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
 ```
 
 Frontend (`frontend/.env`):
@@ -66,210 +52,94 @@ Frontend (`frontend/.env`):
 VITE_API_URL=http://localhost:3001/api
 ```
 
-3. **Run the application:**
-
+### 3) Run
 ```bash
-# Terminal 1: Start backend
+# Terminal 1
 cd backend
 npm run dev
 
-# Terminal 2: Start frontend
+# Terminal 2
 cd frontend
 npm run dev
 ```
 
-4. **Open your browser:**
-Navigate to `http://localhost:5173`
+App URL: `http://localhost:5173`
 
-## 📁 Project Structure
+## Production Deployment
 
-```
-interview-website/
-├── backend/                 # Express + TypeScript API
-│   ├── src/
-│   │   ├── data/           # Question bank
-│   │   ├── routes/         # API routes
-│   │   ├── services/       # AI analysis service
-│   │   ├── types/          # Shared types
-│   │   └── index.ts        # Server entry
-│   └── package.json
-├── frontend/               # React + Vite + TypeScript
-│   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── hooks/          # Custom hooks (STT)
-│   │   ├── services/       # API client
-│   │   ├── types/          # TypeScript types
-│   │   └── App.tsx         # Main app
-│   └── package.json
-└── README.md
-```
+### Backend on Render
+1. In Render, create a new **Blueprint** service from this repo root so Render reads `render.yaml`.
+2. Confirm service settings:
+- Root directory: `backend`
+- Build command: `npm ci && npm run build`
+- Start command: `npm start`
+- Health check path: `/api/health`
+3. Set environment variables in Render:
+- `NODE_ENV=production`
+- `CORS_ALLOWED_ORIGIN=https://griffin-hall.github.io`
+- `OPENAI_API_KEY=<your-key>`
+- `OPENAI_MODEL=gpt-4o-mini` (optional override)
+4. Deploy and copy the service URL, for example:
+- `https://interview-coach-api.onrender.com`
 
-## 🔌 API Endpoints
+### Frontend on GitHub Pages
+1. In GitHub repo settings, go to **Settings > Secrets and variables > Actions > Variables**.
+2. Create repository variable:
+- `VITE_API_URL=https://<your-render-service>.onrender.com/api`
+3. In **Settings > Pages**, set Source to **GitHub Actions**.
+4. Push to `master` (or `main`) to trigger `.github/workflows/deploy.yml`.
+5. Frontend will be available at:
+- `https://griffin-hall.github.io/interview-coach/`
 
-### Health Check
-```
-GET /api/health
-```
+## OpenAI Behavior
+- If `OPENAI_API_KEY` is set, backend attempts real OpenAI analysis.
+- Output is validated against `{ strengths, gaps, followUp }`.
+- If OpenAI fails (network/auth/shape), backend falls back to mock analysis.
 
-### Questions
-```
-GET /api/questions?category=<cs_ops|tech_support|behavioral>&lastId=<optional>
-GET /api/questions/categories
-```
+## API Endpoints
+- `GET /api/health`
+- `GET /api/questions?category=<cs_ops|tech_support|behavioral>&lastId=<optional>`
+- `GET /api/questions/categories`
+- `POST /api/analyze-answer`
+- `GET /api/sessions`
+- `POST /api/sessions`
+- `GET /api/sessions/:id`
+- `DELETE /api/sessions/:id`
 
-### AI Analysis
-```
-POST /api/analyze-answer
-Content-Type: application/json
+## Troubleshooting
 
-{
-  "question": "Tell me about a time...",
-  "answer": "User's answer text...",
-  "interviewType": "behavioral"
-}
-```
+### GitHub Pages deploy fails with missing API URL
+- Symptom: workflow build step errors with `VITE_API_URL repository variable is not set`.
+- Fix: set repository variable `VITE_API_URL` to your Render API URL ending in `/api`.
 
-### Sessions
-```
-GET    /api/sessions           # List all sessions
-POST   /api/sessions           # Save a session
-GET    /api/sessions/:id       # Get session details
-DELETE /api/sessions/:id       # Delete a session
-```
+### Browser gets CORS errors from backend
+- Symptom: requests blocked from `griffin-hall.github.io`.
+- Fix: in Render, set `CORS_ALLOWED_ORIGIN=https://griffin-hall.github.io`.
+- Note: production backend intentionally rejects other origins.
 
-## 🤖 AI Analysis System
+### OpenAI key set but responses still look mock-like
+- Symptom: generic fallback-style responses.
+- Fixes:
+  - Verify Render has valid `OPENAI_API_KEY`.
+  - Check Render logs for OpenAI request/auth errors.
+  - Confirm `OPENAI_MODEL` is valid for your account.
 
-The platform includes a **mock AI analysis** that works without API keys for demo purposes:
+### Sessions disappear after some time
+- Expected behavior for current architecture.
+- Sessions are stored in-memory and reset on restart/sleep/redeploy.
 
-### Mock Analysis Features
-- Detects specific examples and metrics in answers
-- Checks for STAR method structure (behavioral questions)
-- Provides contextual feedback based on answer length and content
-- Generates relevant follow-up questions
+## Scripts
 
-### Using Real AI (Optional)
-To use OpenAI or other LLM providers:
-
-1. Add your API key to `backend/.env`:
-```env
-OPENAI_API_KEY=sk-your-key-here
-```
-
-2. Update `backend/src/services/aiAnalysis.ts` to call the actual API:
-```typescript
-export async function analyzeAnswerWithAI(
-  question: string,
-  answer: string,
-  interviewType: InterviewType
-): Promise<AnalyzeResponse> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  
-  if (apiKey) {
-    // Call OpenAI API
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      // ... implementation
-    });
-    return parseResponse(response);
-  }
-  
-  return mockAnalyzeAnswer(question, answer, interviewType);
-}
-```
-
-## 📝 Prompt Template
-
-The analysis uses this prompt structure:
-
-```
-You are an expert interview coach specializing in [INTERVIEW_TYPE] interviews.
-
-## Interview Question:
-[QUESTION_TEXT]
-
-## Candidate's Answer:
-[ANSWER_TEXT]
-
-## Instructions:
-Please analyze the answer and provide feedback in the following JSON format:
-{
-  "strengths": ["..."],
-  "gaps": ["..."],
-  "followUp": "..."
-}
-```
-
-## 🎯 Interview Question Bank
-
-### Customer Support (cs_ops)
-- Handling frustrated customers
-- Ticket prioritization
-- VIP customer communication
-- Identifying pain points
-- Enterprise onboarding
-
-### Technical Support (tech_support)
-- Performance troubleshooting
-- Explaining technical issues
-- SSO configuration problems
-- Bug reporting process
-- Data export challenges
-
-### Behavioral (STAR Method)
-- Difficult customers/stakeholders
-- Quick learning situations
-- Process improvements
-- Learning from mistakes
-- Team collaboration
-- Meeting tight deadlines
-
-## 🛠️ Development
-
-### Backend Scripts
+Backend:
 ```bash
-npm run dev      # Development with hot reload
-npm run build    # Compile TypeScript
-npm start        # Run compiled code
+npm run dev
+npm run build
+npm start
 ```
 
-### Frontend Scripts
+Frontend:
 ```bash
-npm run dev      # Development server
-npm run build    # Production build
-npm run preview  # Preview production build
+npm run dev
+npm run build
+npm run preview
 ```
-
-## 🌐 Browser Support
-
-| Feature | Chrome | Firefox | Safari | Edge |
-|---------|--------|---------|--------|------|
-| Basic App | ✅ | ✅ | ✅ | ✅ |
-| Speech-to-Text | ✅ | ❌ | ❌ | ✅ |
-
-## 📸 Screenshots
-
-*Screenshots would go here showing:*
-- Interview type selection screen
-- Active interview with question and answer panel
-- AI feedback panel showing strengths and gaps
-- Session history list
-- Session detail view with export option
-
-## 🔮 Future Enhancements
-
-- [ ] Adaptive difficulty based on performance
-- [ ] More sophisticated question selection algorithm
-- [ ] Progress tracking across multiple sessions
-- [ ] Integration with more AI providers (Gemini, Claude)
-- [ ] User authentication for multi-user support
-- [ ] Interview recording and playback
-- [ ] Analytics dashboard
-
-## 📄 License
-
-MIT License - Built for educational and portfolio purposes.
-
-## 🙏 Acknowledgments
-
-- Built with [React](https://react.dev/), [Express](https://expressjs.com/), and [Tailwind CSS](https://tailwindcss.com/)
-- Speech recognition via [Web Speech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API)
-- Icons via Heroicons

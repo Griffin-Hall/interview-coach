@@ -1,5 +1,57 @@
 import { InterviewType, AnalyzeResponse } from '../types';
 
+const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+const DEFAULT_OPENAI_MODEL = 'gpt-4o-mini';
+
+const analysisJsonSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['strengths', 'gaps', 'followUp'],
+  properties: {
+    strengths: {
+      type: 'array',
+      minItems: 2,
+      maxItems: 3,
+      items: { type: 'string' }
+    },
+    gaps: {
+      type: 'array',
+      minItems: 2,
+      maxItems: 3,
+      items: { type: 'string' }
+    },
+    followUp: {
+      type: 'string',
+      minLength: 1
+    }
+  }
+} as const;
+
+interface OpenAIChatCompletionResponse {
+  choices?: Array<{
+    message?: {
+      content?: string | null;
+    };
+  }>;
+}
+
+interface OpenAIChatCompletionRequest {
+  model: string;
+  temperature: number;
+  messages: Array<{
+    role: 'system' | 'user';
+    content: string;
+  }>;
+  response_format: {
+    type: 'json_schema';
+    json_schema: {
+      name: string;
+      strict: true;
+      schema: typeof analysisJsonSchema;
+    };
+  };
+}
+
 // Simple prompt builder for interview answer analysis
 export function buildAnalysisPrompt(
   question: string,
@@ -57,17 +109,70 @@ export async function analyzeAnswerWithAI(
   answer: string,
   interviewType: InterviewType
 ): Promise<AnalyzeResponse> {
-  // Check if we have an API key for a real LLM service
-  const apiKey = process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY;
-  
-  if (apiKey) {
-    // In a real implementation, you would call the LLM API here
-    // For now, we'll use the mock implementation
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+
+  if (!apiKey) {
     return mockAnalyzeAnswer(question, answer, interviewType);
   }
-  
-  // Default to mock analysis for demo/portfolio purposes
-  return mockAnalyzeAnswer(question, answer, interviewType);
+
+  const model = process.env.OPENAI_MODEL?.trim() || DEFAULT_OPENAI_MODEL;
+  const prompt = buildAnalysisPrompt(question, answer, interviewType);
+
+  const requestBody: OpenAIChatCompletionRequest = {
+    model,
+    temperature: 0.2,
+    messages: [
+      {
+        role: 'system',
+        content: 'You are an expert interview coach. Return only valid JSON.'
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ],
+    response_format: {
+      type: 'json_schema',
+      json_schema: {
+        name: 'interview_analysis',
+        strict: true,
+        schema: analysisJsonSchema
+      }
+    }
+  };
+
+  try {
+    const response = await fetch(OPENAI_API_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`OpenAI request failed (${response.status}): ${errorText}`);
+    }
+
+    const completion = (await response.json()) as OpenAIChatCompletionResponse;
+    const content = completion.choices?.[0]?.message?.content;
+
+    if (typeof content !== 'string' || !content.trim()) {
+      throw new Error('OpenAI returned an empty response.');
+    }
+
+    const parsed = parseAndValidateAnalysis(content);
+    if (!parsed) {
+      throw new Error('OpenAI response did not match expected analysis shape.');
+    }
+
+    return parsed;
+  } catch (error) {
+    console.error('OpenAI analysis failed. Falling back to mock analysis.', error);
+    return mockAnalyzeAnswer(question, answer, interviewType);
+  }
 }
 
 // Mock analysis function for demo purposes
@@ -159,4 +264,51 @@ function mockAnalyzeAnswer(
     gaps: gaps.slice(0, 3),
     followUp
   };
+}
+
+function parseAndValidateAnalysis(content: string): AnalyzeResponse | null {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    return null;
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    return null;
+  }
+
+  const candidate = parsed as {
+    strengths?: unknown;
+    gaps?: unknown;
+    followUp?: unknown;
+  };
+
+  const strengths = toStringArray(candidate.strengths);
+  const gaps = toStringArray(candidate.gaps);
+  const followUp = typeof candidate.followUp === 'string' ? candidate.followUp.trim() : '';
+
+  if (!strengths || !gaps || strengths.length < 2 || gaps.length < 2 || !followUp) {
+    return null;
+  }
+
+  return {
+    strengths: strengths.slice(0, 3),
+    gaps: gaps.slice(0, 3),
+    followUp
+  };
+}
+
+function toStringArray(value: unknown): string[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const normalized = value
+    .filter((entry): entry is string => typeof entry === 'string')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  return normalized.length > 0 ? normalized : null;
 }

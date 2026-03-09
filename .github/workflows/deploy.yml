@@ -34,7 +34,14 @@ jobs:
           npm ci
 
       - name: Build
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
         run: |
+          if [ -z "$VITE_API_URL" ]; then
+            echo "VITE_API_URL repository variable is not set."
+            echo "Set it to your Render API URL, e.g. https://<service>.onrender.com/api"
+            exit 1
+          fi
           cd frontend
           npm run build
 

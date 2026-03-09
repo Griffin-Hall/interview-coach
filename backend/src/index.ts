@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import cors from 'cors';
+import cors, { CorsOptions } from 'cors';
 import dotenv from 'dotenv';
 
 import questionsRouter from './routes/questions';
@@ -10,9 +10,53 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const PRODUCTION_FRONTEND_ORIGIN = 'https://griffin-hall.github.io';
+const isProduction = process.env.NODE_ENV === 'production';
+const configuredCorsOrigin = process.env.CORS_ALLOWED_ORIGIN?.trim();
+
+if (isProduction) {
+  if (!configuredCorsOrigin) {
+    throw new Error('CORS_ALLOWED_ORIGIN is required in production.');
+  }
+
+  if (configuredCorsOrigin !== PRODUCTION_FRONTEND_ORIGIN) {
+    throw new Error(
+      `CORS_ALLOWED_ORIGIN must be "${PRODUCTION_FRONTEND_ORIGIN}" in production.`
+    );
+  }
+}
+
+const allowedOrigins = isProduction
+  ? [configuredCorsOrigin as string]
+  : [
+      PRODUCTION_FRONTEND_ORIGIN,
+      'http://localhost:5173',
+      'http://127.0.0.1:5173'
+    ];
+
+const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
+    // Allow non-browser requests (curl, health checks) with no Origin header.
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    const corsError = new Error(`CORS blocked for origin: ${origin}`) as Error & {
+      status?: number;
+    };
+    corsError.status = 403;
+    callback(corsError);
+  }
+};
 
 // Enable CORS
-app.use(cors());
+app.use(cors(corsOptions));
 
 // Parse JSON bodies
 app.use(express.json());
@@ -38,8 +82,11 @@ app.use((_req: Request, res: Response) => {
 
 // Error handler
 app.use((err: Error, _req: Request, res: Response, _next: express.NextFunction) => {
+  const status = (err as Error & { status?: number }).status || 500;
   console.error('Server error:', err);
-  res.status(500).json({ error: 'Internal server error' });
+  res.status(status).json({
+    error: status === 500 ? 'Internal server error' : err.message
+  });
 });
 
 // Start server
