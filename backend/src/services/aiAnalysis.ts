@@ -35,7 +35,7 @@ const typePlaybooks: Record<
   }
 > = {
   cs_ops: {
-    label: 'Customer Support / Systems Enablement',
+    label: 'Customer Support Operations',
     focusAreas:
       'empathy, de-escalation, prioritization, process ownership, and customer retention'
   },

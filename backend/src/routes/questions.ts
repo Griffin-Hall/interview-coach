@@ -47,7 +47,7 @@ router.get('/', (req: Request, res: Response) => {
 // GET /api/questions/categories - List all categories with counts
 router.get('/categories', (_req: Request, res: Response) => {
   const categories: { id: QuestionCategory; name: string; count: number }[] = [
-    { id: 'cs_ops', name: 'Customer Support / Systems Enablement', count: getQuestionsByCategory('cs_ops').length },
+    { id: 'cs_ops', name: 'Customer Support Operations', count: getQuestionsByCategory('cs_ops').length },
     { id: 'tech_support', name: 'Technical Support / SaaS', count: getQuestionsByCategory('tech_support').length },
     { id: 'behavioral', name: 'Behavioral (STAR Method)', count: getQuestionsByCategory('behavioral').length }
   ];

@@ -7,7 +7,7 @@ export const interviewTypeLabels: Record<InterviewType, string> = {
 };
 
 export const interviewTypeLongLabels: Record<InterviewType, string> = {
-  cs_ops: 'Customer Support / Systems Enablement',
+  cs_ops: 'Customer Support Operations',
   tech_support: 'Technical Support / SaaS',
   behavioral: 'Behavioral (STAR)'
 };

@@ -8,7 +8,7 @@ export interface Question {
 }
 
 export const questionBank: Question[] = [
-  // Customer Support / Systems Enablement (cs_ops)
+  // Customer Support Operations (cs_ops)
   {
     id: 'cs_ops_001',
     category: 'cs_ops',
