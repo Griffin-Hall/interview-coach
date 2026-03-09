@@ -7,6 +7,7 @@ interface SpeechToTextState {
   error: string | null;
   isSupported: boolean;
   permissionState: 'unknown' | 'prompt' | 'granted' | 'denied';
+  audioLevel: number;
 }
 
 interface UseSpeechToTextReturn extends SpeechToTextState {
@@ -75,9 +76,90 @@ export function useSpeechToText(): UseSpeechToTextReturn {
   const [permissionState, setPermissionState] = useState<
     'unknown' | 'prompt' | 'granted' | 'denied'
   >('unknown');
+  const [audioLevel, setAudioLevel] = useState(0);
   
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const finalTranscriptRef = useRef('');
+  const meterStreamRef = useRef<MediaStream | null>(null);
+  const meterContextRef = useRef<AudioContext | null>(null);
+  const meterAnalyserRef = useRef<AnalyserNode | null>(null);
+  const meterDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
+  const meterFrameRef = useRef<number | null>(null);
+
+  const cleanupAudioMeter = useCallback(() => {
+    if (meterFrameRef.current !== null) {
+      window.cancelAnimationFrame(meterFrameRef.current);
+      meterFrameRef.current = null;
+    }
+
+    if (meterStreamRef.current) {
+      meterStreamRef.current.getTracks().forEach((track) => track.stop());
+      meterStreamRef.current = null;
+    }
+
+    if (meterContextRef.current) {
+      void meterContextRef.current.close();
+      meterContextRef.current = null;
+    }
+
+    meterAnalyserRef.current = null;
+    meterDataRef.current = null;
+    setAudioLevel(0);
+  }, []);
+
+  const startAudioMeter = useCallback(async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      return;
+    }
+
+    if (meterStreamRef.current) {
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const context = new AudioContext();
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.75;
+
+      const source = context.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      const data = new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount));
+      meterStreamRef.current = stream;
+      meterContextRef.current = context;
+      meterAnalyserRef.current = analyser;
+      meterDataRef.current = data;
+
+      const tick = () => {
+        const currentAnalyser = meterAnalyserRef.current;
+        const currentData = meterDataRef.current;
+
+        if (!currentAnalyser || !currentData) {
+          return;
+        }
+
+        currentAnalyser.getByteTimeDomainData(currentData);
+
+        let sumSquares = 0;
+        for (let i = 0; i < currentData.length; i += 1) {
+          const normalized = (currentData[i] - 128) / 128;
+          sumSquares += normalized * normalized;
+        }
+
+        const rms = Math.sqrt(sumSquares / currentData.length);
+        const scaled = Math.min(1, rms * 4.5);
+        setAudioLevel(scaled);
+
+        meterFrameRef.current = window.requestAnimationFrame(tick);
+      };
+
+      tick();
+    } catch {
+      setAudioLevel(0);
+    }
+  }, []);
 
   useEffect(() => {
     if (!window.isSecureContext) {
@@ -107,10 +189,12 @@ export function useSpeechToText(): UseSpeechToTextReturn {
       setIsListening(true);
       setPermissionState('granted');
       setError(null);
+      void startAudioMeter();
     };
 
     recognition.onend = () => {
       setIsListening(false);
+      cleanupAudioMeter();
     };
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -164,6 +248,7 @@ export function useSpeechToText(): UseSpeechToTextReturn {
       
       setError(errorMessage);
       setIsListening(false);
+      cleanupAudioMeter();
     };
 
     recognitionRef.current = recognition;
@@ -202,8 +287,9 @@ export function useSpeechToText(): UseSpeechToTextReturn {
       if (recognitionRef.current) {
         recognitionRef.current.abort();
       }
+      cleanupAudioMeter();
     };
-  }, []);
+  }, [cleanupAudioMeter, startAudioMeter]);
 
   const enableVoiceInput = useCallback(async (): Promise<boolean> => {
     if (!isSupported) {
@@ -264,6 +350,7 @@ export function useSpeechToText(): UseSpeechToTextReturn {
       recognitionRef.current.stop();
     }
     setIsListening(false);
+    cleanupAudioMeter();
     
     // Append any remaining interim transcript to final
     if (interimTranscript) {
@@ -271,7 +358,7 @@ export function useSpeechToText(): UseSpeechToTextReturn {
       setTranscript(finalTranscriptRef.current);
       setInterimTranscript('');
     }
-  }, [interimTranscript]);
+  }, [cleanupAudioMeter, interimTranscript]);
 
   const resetTranscript = useCallback(() => {
     setTranscript('');
@@ -287,6 +374,7 @@ export function useSpeechToText(): UseSpeechToTextReturn {
     error,
     isSupported,
     permissionState,
+    audioLevel,
     startListening,
     stopListening,
     resetTranscript,

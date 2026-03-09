@@ -58,6 +58,7 @@ export default function QuestionView({
     error: sttError,
     isSupported,
     permissionState,
+    audioLevel,
     startListening,
     stopListening,
     resetTranscript,
@@ -152,6 +153,9 @@ export default function QuestionView({
   };
 
   const progress = total > 0 ? Math.min(100, Math.max(0, (currentIndex / total) * 100)) : 0;
+  const micMeterWidth = isListening
+    ? Math.max(8, Math.round(Math.min(1, Math.max(0, audioLevel)) * 100))
+    : 6;
 
   return (
     <section className="panel workspace-panel">
@@ -268,6 +272,19 @@ export default function QuestionView({
               >
                 {isListening ? 'Stop Recording' : 'Record Answer'}
               </button>
+            ) : null}
+
+            {isSupported && permissionState === 'granted' ? (
+              <div className="mic-status" aria-live="polite">
+                <span className={`mic-status-dot ${isListening ? 'mic-status-dot-active' : ''}`} />
+                <span className="mic-status-label">{isListening ? 'Listening' : 'Mic Ready'}</span>
+                <span className="mic-level-track" aria-hidden="true">
+                  <span
+                    className={`mic-level-fill ${isListening ? 'mic-level-fill-active' : ''}`}
+                    style={{ width: `${micMeterWidth}%` }}
+                  />
+                </span>
+              </div>
             ) : null}
           </div>
           <p className="micro-copy">
