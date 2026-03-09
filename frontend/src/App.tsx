@@ -243,7 +243,7 @@ function App() {
             onComplete={handleCompleteInterview}
             onExitToHome={handleExitInterviewToHome}
             onNewInterview={handleNewInterview}
-            onQuestionAsked={() => handleQuestionAsked()}
+            onQuestionAsked={handleQuestionAsked}
             onAnswerAnalyzed={handleAnswerAnalyzed}
           />
         );

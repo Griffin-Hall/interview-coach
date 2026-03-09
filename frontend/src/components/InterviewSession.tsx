@@ -26,7 +26,7 @@ interface InterviewSessionProps {
   onComplete: (result: InterviewSessionResult) => void;
   onExitToHome: () => void;
   onNewInterview: () => void;
-  onQuestionAsked: (type: InterviewType) => void;
+  onQuestionAsked: () => void;
   onAnswerAnalyzed: (type: InterviewType) => void;
 }
 
@@ -67,9 +67,9 @@ export default function InterviewSessionComponent({
 
       askedPromptIdsRef.current.add(promptId);
       setQuestionsAskedCount((previous) => previous + 1);
-      onQuestionAsked(type);
+      onQuestionAsked();
     },
-    [onQuestionAsked, type]
+    [onQuestionAsked]
   );
 
   const loadQuestion = useCallback(
