@@ -1,5 +1,6 @@
-export type InterviewType = 'cs_ops' | 'tech_support' | 'behavioral';
+export type InterviewType = 'cs_ops' | 'tech_support' | 'behavioral' | 'custom';
 export type QuestionCategory = InterviewType;
+export type CustomQuestionMode = 'job_description' | 'role_prompt';
 
 export interface Question {
   id: string;
@@ -37,6 +38,18 @@ export interface AnalyzeResponse {
   meta?: AnalyzeMeta;
 }
 
+export interface GenerateCustomQuestionsRequest {
+  mode: CustomQuestionMode;
+  input: string;
+  questionCount?: number;
+}
+
+export interface GenerateCustomQuestionsResponse {
+  roleLabel: string;
+  questions: Question[];
+  meta: AnalyzeMeta;
+}
+
 export interface QAExchange {
   questionId: string;
   questionText: string;
@@ -56,6 +69,8 @@ export interface InterviewSession {
   questionsAsked?: number;
   answersAnalyzed?: number;
   reason?: 'completed' | 'ended_early';
+  customRoleLabel?: string;
+  customQuestionMode?: CustomQuestionMode;
 }
 
 export interface CategoryInfo {

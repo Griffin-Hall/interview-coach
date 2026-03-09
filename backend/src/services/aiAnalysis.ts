@@ -44,6 +44,11 @@ const typePlaybooks: Record<
     focusAreas:
       'structured troubleshooting, technical accuracy, communication clarity, and verification steps'
   },
+  custom: {
+    label: 'Custom Role-Specific Interview',
+    focusAreas:
+      'role alignment, depth of examples, clear reasoning, communication, and measurable outcomes'
+  },
   behavioral: {
     label: 'Behavioral / STAR',
     focusAreas:
@@ -164,8 +169,7 @@ export async function analyzeAnswerWithAI(
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`OpenAI request failed (${response.status}): ${errorText}`);
+      throw new Error(`OpenAI request failed (${response.status}).`);
     }
 
     const completion = (await response.json()) as OpenAIChatCompletionResponse;
@@ -294,6 +298,11 @@ function mockAnalyzeAnswer(
       'What was your exact step-by-step process for isolating root cause?',
       'How did you confirm the issue was fixed and not just temporarily masked?',
       'How would you explain your technical findings to a non-technical stakeholder?'
+    ],
+    custom: [
+      'Which part of this answer best demonstrates fit for the target role, and why?',
+      'What concrete outcome would prove your approach worked in this specific role context?',
+      'If the interviewer challenged your approach, how would you defend your trade-offs?'
     ],
     behavioral: [
       'What trade-off did you face, and how did you decide which path to take?',

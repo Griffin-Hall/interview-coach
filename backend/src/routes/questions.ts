@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { QuestionCategory, getNextQuestion, getQuestionsByCategory } from '../data/questions';
+import { generateCustomQuestions } from '../services/customQuestionGeneration';
+import { CustomQuestionMode, GenerateCustomQuestionsRequest } from '../types';
 
 const router = Router();
 
@@ -53,6 +55,42 @@ router.get('/categories', (_req: Request, res: Response) => {
   ];
   
   res.json({ categories });
+});
+
+// POST /api/questions/custom - Generate role-specific custom interview questions
+router.post('/custom', async (req: Request, res: Response) => {
+  try {
+    const { mode, input, questionCount } = req.body as GenerateCustomQuestionsRequest;
+
+    const validModes: CustomQuestionMode[] = ['job_description', 'role_prompt'];
+    if (!mode || !validModes.includes(mode)) {
+      res.status(400).json({
+        error: 'Invalid mode. Must be one of: job_description, role_prompt'
+      });
+      return;
+    }
+
+    if (!input || typeof input !== 'string' || input.trim().length < 20) {
+      res.status(400).json({
+        error: 'Input is required and must be at least 20 characters.'
+      });
+      return;
+    }
+
+    const normalizedCount =
+      typeof questionCount === 'number'
+        ? Math.min(8, Math.max(5, Math.round(questionCount)))
+        : 6;
+
+    const generated = await generateCustomQuestions(input.trim(), mode, normalizedCount);
+
+    res.json(generated);
+  } catch (error) {
+    console.error('Error generating custom questions:', error);
+    res.status(500).json({
+      error: 'Failed to generate custom questions. Please try again.'
+    });
+  }
 });
 
 export default router;

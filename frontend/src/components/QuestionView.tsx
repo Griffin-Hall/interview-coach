@@ -18,7 +18,8 @@ const MIN_ANSWER_LENGTH = 20;
 const typeLabels: Record<InterviewType, string> = {
   cs_ops: 'Customer Support',
   tech_support: 'Technical Support',
-  behavioral: 'Behavioral'
+  behavioral: 'Behavioral',
+  custom: 'Custom Role'
 };
 
 export default function QuestionView({

@@ -32,7 +32,9 @@ export default function HistoryView({ sessions, onBack, onOpenSession }: History
           {sessions.map((session) => (
             <article key={session.id} className="panel history-item">
               <div>
-                <p className="history-type">{interviewTypeLongLabels[session.type]}</p>
+                <p className="history-type">
+                  {session.customRoleLabel || interviewTypeLongLabels[session.type]}
+                </p>
                 <p className="muted-text">{formatSessionDate(session.updatedAt || session.createdAt)}</p>
                 <p className="micro-copy">
                   {session.exchanges.length} analyzed answer

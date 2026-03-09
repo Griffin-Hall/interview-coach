@@ -4,6 +4,8 @@ import type {
   QuestionCategory,
   AnalyzeRequest,
   AnalyzeResponse,
+  GenerateCustomQuestionsRequest,
+  GenerateCustomQuestionsResponse,
   CategoryInfo,
   SessionListResponse,
   InterviewSession,
@@ -40,6 +42,13 @@ export const fetchQuestions = async (
 
 export const fetchCategories = async (): Promise<{ categories: CategoryInfo[] }> => {
   const response = await api.get('/questions/categories');
+  return response.data;
+};
+
+export const generateCustomQuestions = async (
+  data: GenerateCustomQuestionsRequest
+): Promise<GenerateCustomQuestionsResponse> => {
+  const response = await api.post('/questions/custom', data);
   return response.data;
 };
 

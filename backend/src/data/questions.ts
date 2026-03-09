@@ -1,4 +1,4 @@
-export type QuestionCategory = 'cs_ops' | 'tech_support' | 'behavioral';
+export type QuestionCategory = 'cs_ops' | 'tech_support' | 'behavioral' | 'custom';
 
 export interface Question {
   id: string;

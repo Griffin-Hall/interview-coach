@@ -10,13 +10,15 @@ interface InterviewTypeSelectorProps {
 const typeDescriptions: Record<InterviewType, string> = {
   cs_ops: 'Practice escalations, ticket triage, and process-led customer recovery.',
   tech_support: 'Practice technical troubleshooting, diagnostics, and stakeholder communication.',
-  behavioral: 'Practice STAR-style storytelling, prioritization, and ownership examples.'
+  behavioral: 'Practice STAR-style storytelling, prioritization, and ownership examples.',
+  custom: 'Generate role-specific interviews from a custom role description or job posting.'
 };
 
 const typeBadges: Record<InterviewType, string> = {
   cs_ops: 'CS Ops',
   tech_support: 'Tech Support',
-  behavioral: 'Behavioral'
+  behavioral: 'Behavioral',
+  custom: 'Custom'
 };
 
 export default function InterviewTypeSelector({

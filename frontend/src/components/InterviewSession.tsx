@@ -28,6 +28,8 @@ interface InterviewSessionProps {
   onNewInterview: () => void;
   onQuestionAsked: () => void;
   onAnswerAnalyzed: (type: InterviewType) => void;
+  customQuestions?: Question[];
+  customRoleLabel?: string;
 }
 
 export default function InterviewSessionComponent({
@@ -36,7 +38,9 @@ export default function InterviewSessionComponent({
   onExitToHome,
   onNewInterview,
   onQuestionAsked,
-  onAnswerAnalyzed
+  onAnswerAnalyzed,
+  customQuestions,
+  customRoleLabel
 }: InterviewSessionProps) {
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [pagination, setPagination] = useState<{
@@ -74,6 +78,52 @@ export default function InterviewSessionComponent({
 
   const loadQuestion = useCallback(
     async (lastId?: string) => {
+      if (type === 'custom') {
+        const questionBank = customQuestions || [];
+
+        if (questionBank.length === 0) {
+          setError('No custom questions are available. Return home and generate a custom role first.');
+          setCurrentQuestion(null);
+          setPagination(null);
+          return;
+        }
+
+        let currentIndex = 0;
+        if (lastId) {
+          const previousIndex = questionBank.findIndex((question) => question.id === lastId);
+          if (previousIndex !== -1) {
+            currentIndex = previousIndex + 1;
+          }
+        }
+
+        const question = questionBank[currentIndex] || null;
+
+        if (!question) {
+          setCurrentQuestion(null);
+          setPagination({
+            current: questionBank.length,
+            total: questionBank.length,
+            hasMore: false
+          });
+          setFeedback(null);
+          setFollowUpMode(false);
+          setFollowUpQuestion(null);
+          return;
+        }
+
+        setCurrentQuestion(question);
+        setPagination({
+          current: currentIndex + 1,
+          total: questionBank.length,
+          hasMore: currentIndex < questionBank.length - 1
+        });
+        setFeedback(null);
+        setFollowUpMode(false);
+        setFollowUpQuestion(null);
+        registerAskedPrompt(`base:${question.id}`);
+        return;
+      }
+
       try {
         setIsQuestionLoading(true);
         setError(null);
@@ -94,7 +144,7 @@ export default function InterviewSessionComponent({
         setIsQuestionLoading(false);
       }
     },
-    [registerAskedPrompt, type]
+    [customQuestions, registerAskedPrompt, type]
   );
 
   useEffect(() => {
@@ -287,7 +337,9 @@ export default function InterviewSessionComponent({
       <header className="panel interview-toolbar">
         <div>
           <p className="panel-eyebrow">Interview Workspace</p>
-          <h2 className="panel-title">Live Coaching Session</h2>
+          <h2 className="panel-title">
+            {type === 'custom' && customRoleLabel ? `${customRoleLabel} Interview` : 'Live Coaching Session'}
+          </h2>
         </div>
 
         <div className="action-row">

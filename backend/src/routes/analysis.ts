@@ -26,10 +26,10 @@ router.post('/', async (req: Request, res: Response) => {
     }
     
     // Validate interview type
-    const validTypes: InterviewType[] = ['cs_ops', 'tech_support', 'behavioral'];
+    const validTypes: InterviewType[] = ['cs_ops', 'tech_support', 'behavioral', 'custom'];
     if (!validTypes.includes(interviewType as InterviewType)) {
       res.status(400).json({ 
-        error: 'Invalid interview type. Must be one of: cs_ops, tech_support, behavioral' 
+        error: 'Invalid interview type. Must be one of: cs_ops, tech_support, behavioral, custom' 
       });
       return;
     }

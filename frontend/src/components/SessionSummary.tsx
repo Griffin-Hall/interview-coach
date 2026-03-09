@@ -57,7 +57,7 @@ export default function SessionSummary({
       <div className="summary-header panel">
         <div>
           <p className="panel-eyebrow">Session Summary</p>
-          <h2 className="panel-title">{formatInterviewType(session.type)}</h2>
+          <h2 className="panel-title">{session.customRoleLabel || formatInterviewType(session.type)}</h2>
           <p className="muted-text">{formatSessionDate(session.createdAt)}</p>
         </div>
 

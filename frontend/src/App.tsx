@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import CustomInterviewBuilder, { type CustomInterviewConfig } from './components/CustomInterviewBuilder';
 import HistoryView from './components/HistoryView';
 import InterviewSessionComponent, {
   type InterviewSessionResult
@@ -24,7 +25,8 @@ const createVisitStats = (): VisitStats => ({
   perType: {
     cs_ops: 0,
     tech_support: 0,
-    behavioral: 0
+    behavioral: 0,
+    custom: 0
   },
   startedAt: new Date().toISOString()
 });
@@ -38,6 +40,7 @@ function App() {
   const [sessionHistory, setSessionHistory] = useState<InterviewSession[]>([]);
   const [activeSummary, setActiveSummary] = useState<InterviewSession | null>(null);
   const [visitStats, setVisitStats] = useState<VisitStats>(() => createVisitStats());
+  const [customInterviewConfig, setCustomInterviewConfig] = useState<CustomInterviewConfig | null>(null);
   const [interviewKey, setInterviewKey] = useState(0);
 
   useEffect(() => {
@@ -63,6 +66,14 @@ function App() {
       return;
     }
 
+    setCustomInterviewConfig(null);
+    setInterviewKey((previous) => previous + 1);
+    setCurrentView('interview');
+  };
+
+  const handleStartCustomInterview = (config: CustomInterviewConfig) => {
+    setCustomInterviewConfig(config);
+    setSelectedType('custom');
     setInterviewKey((previous) => previous + 1);
     setCurrentView('interview');
   };
@@ -108,7 +119,9 @@ function App() {
         durationSeconds,
         questionsAsked: result.questionsAsked,
         answersAnalyzed: result.answersAnalyzed,
-        reason: result.reason
+        reason: result.reason,
+        customRoleLabel: selectedType === 'custom' ? customInterviewConfig?.roleLabel : undefined,
+        customQuestionMode: selectedType === 'custom' ? customInterviewConfig?.mode : undefined
       };
 
       setSessionHistory((previous) => [session, ...previous]);
@@ -116,11 +129,12 @@ function App() {
       setCurrentView('summary');
       setSelectedType(null);
     },
-    [selectedType]
+    [customInterviewConfig, selectedType]
   );
 
   const handleExitInterviewToHome = () => {
     setSelectedType(null);
+    setCustomInterviewConfig(null);
     setCurrentView('home');
   };
 
@@ -128,6 +142,7 @@ function App() {
     setVisitStats(createVisitStats());
     setSelectedType(null);
     setActiveSummary(null);
+    setCustomInterviewConfig(null);
     setCurrentView('home');
     setInterviewKey((previous) => previous + 1);
   };
@@ -180,6 +195,7 @@ function App() {
 
         <aside className="home-secondary">
           <VisitStatsWidget stats={visitStats} />
+          <CustomInterviewBuilder onStartCustom={handleStartCustomInterview} />
 
           <section className="panel panel-soft">
             <p className="panel-eyebrow">History Snapshot</p>
@@ -236,6 +252,21 @@ function App() {
           );
         }
 
+        if (selectedType === 'custom' && !customInterviewConfig) {
+          return (
+            <section className="panel empty-state">
+              <h3>No custom interview configuration found</h3>
+              <button
+                type="button"
+                className="button button-primary"
+                onClick={() => setCurrentView('home')}
+              >
+                Return Home
+              </button>
+            </section>
+          );
+        }
+
         return (
           <InterviewSessionComponent
             key={`interview_${interviewKey}_${selectedType}`}
@@ -245,6 +276,8 @@ function App() {
             onNewInterview={handleNewInterview}
             onQuestionAsked={handleQuestionAsked}
             onAnswerAnalyzed={handleAnswerAnalyzed}
+            customQuestions={customInterviewConfig?.questions}
+            customRoleLabel={customInterviewConfig?.roleLabel}
           />
         );
 

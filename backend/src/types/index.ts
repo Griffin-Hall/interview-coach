@@ -36,3 +36,27 @@ export interface InterviewSession {
   createdAt: string;
   updatedAt: string;
 }
+
+export type CustomQuestionMode = 'job_description' | 'role_prompt';
+
+export interface GeneratedCustomQuestion {
+  id: string;
+  category: 'custom';
+  text: string;
+  tags?: string[];
+}
+
+export interface GenerateCustomQuestionsRequest {
+  mode: CustomQuestionMode;
+  input: string;
+  questionCount?: number;
+}
+
+export interface GenerateCustomQuestionsResponse {
+  roleLabel: string;
+  questions: GeneratedCustomQuestion[];
+  meta: {
+    source: 'llm' | 'fallback';
+    message?: string;
+  };
+}

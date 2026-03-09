@@ -3,13 +3,15 @@ import type { InterviewSession, InterviewType, SessionRunStats } from '../types'
 export const interviewTypeLabels: Record<InterviewType, string> = {
   cs_ops: 'CS Ops',
   tech_support: 'Tech Support',
-  behavioral: 'Behavioral'
+  behavioral: 'Behavioral',
+  custom: 'Custom'
 };
 
 export const interviewTypeLongLabels: Record<InterviewType, string> = {
   cs_ops: 'Customer Support Operations',
   tech_support: 'Technical Support / SaaS',
-  behavioral: 'Behavioral (STAR)'
+  behavioral: 'Behavioral (STAR)',
+  custom: 'Custom Role Interview'
 };
 
 export function formatInterviewType(type: InterviewType): string {
@@ -83,7 +85,7 @@ export function formatSessionDate(value?: string): string {
 
 export function buildSessionMarkdown(session: InterviewSession): string {
   const stats = calculateSessionRunStats(session);
-  const heading = formatInterviewType(session.type);
+  const heading = session.customRoleLabel || formatInterviewType(session.type);
   const lines: string[] = [
     `# AI Interview Session Summary`,
     '',
@@ -94,6 +96,10 @@ export function buildSessionMarkdown(session: InterviewSession): string {
     `**Time Spent:** ${formatDuration(stats.timeSpentSeconds)}`,
     ''
   ];
+
+  if (session.customQuestionMode) {
+    lines.splice(lines.length - 1, 0, `**Question Source:** ${session.customQuestionMode}`);
+  }
 
   session.exchanges.forEach((exchange, index) => {
     lines.push(`## Question ${index + 1}`);
