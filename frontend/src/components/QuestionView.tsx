@@ -57,9 +57,11 @@ export default function QuestionView({
     interimTranscript,
     error: sttError,
     isSupported,
+    permissionState,
     startListening,
     stopListening,
-    resetTranscript
+    resetTranscript,
+    enableVoiceInput
   } = useSpeechToText();
 
   useEffect(() => {
@@ -140,6 +142,13 @@ export default function QuestionView({
     resetTranscript();
     spokenSoFarRef.current = '';
     startListening();
+  };
+
+  const handleEnableVoiceInput = async () => {
+    const granted = await enableVoiceInput();
+    if (!granted) {
+      return;
+    }
   };
 
   const progress = total > 0 ? Math.min(100, Math.max(0, (currentIndex / total) * 100)) : 0;
@@ -240,7 +249,17 @@ export default function QuestionView({
                 ))}
               </select>
             </label>
-            {isSupported ? (
+            {isSupported && permissionState !== 'granted' ? (
+              <button
+                type="button"
+                onClick={() => void handleEnableVoiceInput()}
+                disabled={isLoading}
+                className="button button-secondary"
+              >
+                Enable Voice Input
+              </button>
+            ) : null}
+            {isSupported && permissionState === 'granted' ? (
               <button
                 type="button"
                 className={`button ${isListening ? 'button-danger' : 'button-secondary'}`}
@@ -251,7 +270,9 @@ export default function QuestionView({
               </button>
             ) : null}
           </div>
-          <p className="micro-copy">Read aloud uses an AI-generated voice.</p>
+          <p className="micro-copy">
+            Read aloud uses an AI-generated voice. Voice input requires microphone permission.
+          </p>
 
           <button
             type="submit"
