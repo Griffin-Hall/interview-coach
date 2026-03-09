@@ -577,6 +577,19 @@ textarea {
   gap: 0.65rem;
 }
 
+.voice-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.voice-toggle-hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 .answer-area-wrap {
   position: relative;
 }

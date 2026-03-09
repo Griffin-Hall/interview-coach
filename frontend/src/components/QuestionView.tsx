@@ -134,22 +134,26 @@ export default function QuestionView({
     }
   };
 
-  const toggleRecording = () => {
+  const handleVoiceToggle = async () => {
     if (isListening) {
       stopListening();
       return;
     }
 
+    if (!isSupported) {
+      return;
+    }
+
+    if (permissionState !== 'granted') {
+      const granted = await enableVoiceInput();
+      if (!granted) {
+        return;
+      }
+    }
+
     resetTranscript();
     spokenSoFarRef.current = '';
     startListening();
-  };
-
-  const handleEnableVoiceInput = async () => {
-    const granted = await enableVoiceInput();
-    if (!granted) {
-      return;
-    }
   };
 
   const progress = total > 0 ? Math.min(100, Math.max(0, (currentIndex / total) * 100)) : 0;
@@ -197,6 +201,32 @@ export default function QuestionView({
       {validationError ? <aside className="notice notice-error">{validationError}</aside> : null}
 
       <form onSubmit={handleSubmit} className="answer-form">
+        <div className="voice-toggle-row">
+          <button
+            type="button"
+            className={`button ${isListening ? 'button-danger' : 'button-secondary'}`}
+            onClick={() => void handleVoiceToggle()}
+            disabled={isLoading || !isSupported}
+          >
+            Voice: {isListening ? 'On' : 'Off'}
+          </button>
+
+          {isSupported && permissionState === 'granted' ? (
+            <div className="mic-status" aria-live="polite">
+              <span className={`mic-status-dot ${isListening ? 'mic-status-dot-active' : ''}`} />
+              <span className="mic-status-label">{isListening ? 'Listening' : 'Mic Ready'}</span>
+              <span className="mic-level-track" aria-hidden="true">
+                <span
+                  className={`mic-level-fill ${isListening ? 'mic-level-fill-active' : ''}`}
+                  style={{ width: `${micMeterWidth}%` }}
+                />
+              </span>
+            </div>
+          ) : (
+            <p className="voice-toggle-hint">Turn voice on to allow speech-to-text for your answer.</p>
+          )}
+        </div>
+
         <label htmlFor="answer-input" className="summary-label">
           Your Answer
         </label>
@@ -253,39 +283,6 @@ export default function QuestionView({
                 ))}
               </select>
             </label>
-            {isSupported && permissionState !== 'granted' ? (
-              <button
-                type="button"
-                onClick={() => void handleEnableVoiceInput()}
-                disabled={isLoading}
-                className="button button-secondary"
-              >
-                Enable Voice Input
-              </button>
-            ) : null}
-            {isSupported && permissionState === 'granted' ? (
-              <button
-                type="button"
-                className={`button ${isListening ? 'button-danger' : 'button-secondary'}`}
-                onClick={toggleRecording}
-                disabled={isLoading}
-              >
-                {isListening ? 'Stop Recording' : 'Record Answer'}
-              </button>
-            ) : null}
-
-            {isSupported && permissionState === 'granted' ? (
-              <div className="mic-status" aria-live="polite">
-                <span className={`mic-status-dot ${isListening ? 'mic-status-dot-active' : ''}`} />
-                <span className="mic-status-label">{isListening ? 'Listening' : 'Mic Ready'}</span>
-                <span className="mic-level-track" aria-hidden="true">
-                  <span
-                    className={`mic-level-fill ${isListening ? 'mic-level-fill-active' : ''}`}
-                    style={{ width: `${micMeterWidth}%` }}
-                  />
-                </span>
-              </div>
-            ) : null}
           </div>
           <p className="micro-copy">
             Read aloud uses an AI-generated voice. Voice input requires microphone permission.
