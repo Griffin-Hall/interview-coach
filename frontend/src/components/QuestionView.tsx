@@ -141,6 +141,7 @@ export default function QuestionView({
     }
 
     if (!isSupported) {
+      await enableVoiceInput();
       return;
     }
 
@@ -206,9 +207,9 @@ export default function QuestionView({
             type="button"
             className={`button ${isListening ? 'button-danger' : 'button-secondary'}`}
             onClick={() => void handleVoiceToggle()}
-            disabled={isLoading || !isSupported}
+            disabled={isLoading}
           >
-            Voice: {isListening ? 'On' : 'Off'}
+            {isSupported ? `Voice: ${isListening ? 'On' : 'Off'}` : 'Voice: Unavailable'}
           </button>
 
           {isSupported && permissionState === 'granted' ? (
